@@ -1,0 +1,38 @@
+services:
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "5010:5001"
+    depends_on:
+      - mongo
+    environment:
+      - PORT=5001
+      - MONGO_URI=mongodb://mongo:27017/authdb
+      - JWT_SECRET=supersecret123
+
+  restaurant-service:
+    build: ./restaurant-service
+    ports:
+      - "5020:5002"
+    depends_on:
+      - mongo
+    environment:
+      - PORT=5002
+      - MONGO_URI=mongodb://mongo:27017/restaurant-db
+      - JWT_SECRET=supersecret123
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "5030:5003"
+    depends_on:
+      - mongo
+    environment:
+      - PORT=5003
+      - MONGO_URI=mongodb://mongo:27017/order-db
+      - JWT_SECRET=supersecret123
+
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"

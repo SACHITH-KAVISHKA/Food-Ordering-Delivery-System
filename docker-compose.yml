@@ -1,4 +1,6 @@
 services:
+
+  
   auth-service:
     build: ./auth-service
     ports:
@@ -31,6 +33,29 @@ services:
       - PORT=5003
       - MONGO_URI=mongodb://mongo:27017/order-db
       - JWT_SECRET=supersecret123
+
+  delivery-service:
+    build: ./delivery-service
+    ports:
+      - "5040:5004"
+    depends_on:
+      - order-service
+    environment:
+      - PORT=5004
+      - ORDER_SERVICE_URL=http://order-service:5003
+      - JWT_SECRET=supersecret123
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "5060:5006"
+    environment:
+      - PORT=5006
+      - TWILIO_ACCOUNT_SID=your_twilio_sid
+      - TWILIO_AUTH_TOKEN=your_twilio_auth_token
+      - TWILIO_PHONE=+1234567890
+      - EMAIL_FROM=your@gmail.com
+      - EMAIL_PASS=your_email_password
 
   mongo:
     image: mongo

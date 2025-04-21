@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const { verifyToken, allowRoles } = require('../utils/authMiddleware');
+const axios = require('axios');
+const NOTIFY_SERVICE_URL = process.env.NOTIFY_SERVICE_URL;
 
 // 🧑 Customer places an order
 router.post('/create', verifyToken, allowRoles('customer'), async (req, res) => {
@@ -46,15 +48,54 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
     return res.status(400).json({ message: 'Invalid status' });
   }
 
-  const update = { status };
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
 
-  // If a delivery person is marking it in-transit, record their ID
+  order.status = status;
+
   if (req.user.role === 'delivery' && status === 'in-transit') {
-    update.deliveryPersonId = req.user.id;
+    order.deliveryPersonId = req.user.id;
   }
 
-  await Order.findByIdAndUpdate(id, update);
-  res.json({ message: 'Order status updated' });
+  await order.save();
+
+  // 🔔 Notify customer based on status
+  const fakeCustomerPhone = '+94761111222';
+  const fakeCustomerEmail = 'customer@example.com';
+
+  try {
+    if (status === 'accepted') {
+      await axios.post(`${NOTIFY_SERVICE_URL}/notify/email`, {
+        to: fakeCustomerEmail,
+        subject: 'Your order has been accepted!',
+        text: `Your order is now being prepared and will be delivered soon.`
+      });
+    }
+
+    if (status === 'in-transit') {
+      await axios.post(`${NOTIFY_SERVICE_URL}/notify/sms`, {
+        to: fakeCustomerPhone,
+        message: `🚴 Your delivery is now on the way!`
+      });
+    }
+
+    if (status === 'delivered') {
+      await axios.post(`${NOTIFY_SERVICE_URL}/notify/email`, {
+        to: fakeCustomerEmail,
+        subject: 'Order Delivered!',
+        text: 'Your order has been delivered. Enjoy your meal!'
+      });
+
+      await axios.post(`${NOTIFY_SERVICE_URL}/notify/sms`, {
+        to: fakeCustomerPhone,
+        message: `📦 Your order has been delivered. Bon appétit!`
+      });
+    }
+  } catch (err) {
+    console.error('Failed to notify user:', err.message);
+  }
+
+  res.json({ message: 'Order status updated and user notified' });
 });
 
 module.exports = router;

@@ -32,6 +32,21 @@ router.get('/all', verifyToken, allowRoles('delivery'), async (req, res) => {
     res.status(500).json({ message: 'Error fetching delivery orders' });
   }
 });
+// ✅ Update delivery status
+router.patch('/order/:id', verifyToken, allowRoles('delivery'), async (req, res) => {
+  try {
+    const response = await axios.patch(`http://order-service:5003/order/status/${req.params.id}`, req.body, {
+      headers: {
+        Authorization: req.headers.authorization
+      }
+    });
+    res.json(response.data);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Failed to update order status' });
+  }
+});
+
 
 
 module.exports = router;

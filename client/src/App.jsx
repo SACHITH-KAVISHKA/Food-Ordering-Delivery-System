@@ -7,21 +7,24 @@ import RestaurantProfile from './pages/RestaurantProfile';
 import MenuManagement from './pages/MenuManagement';
 import MenuItemsList from './pages/MenuItemsList';
 import CreateOrder from './pages/CreateOrder';
-import OrderHistory from './pages/OrderHistory'
+import OrderHistory from './pages/OrderHistory';
 import DeliveryAdminPanel from './pages/DeliveryAdminPanel';
 import AllOrders from './pages/AllOrders';
 import RestaurantOrders from './pages/RestaurantOrders';
+import HomeAll from './pages/HomeAll';
 import ProtectedLayout from './component/ProtectedLayout';
+import { CartProvider } from './CartContext';
 
 const App = () => {
   return (
-    <div>
+    <CartProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />\
+          <Route path="/register" element={<Register />} />
           <Route element={<ProtectedLayout />}>
+            <Route path="/home" element={<HomeAll />} />
             <Route path="/orders" element={<OrderHistory />} />
           </Route>
           <Route element={<ProtectedLayout allowedRoles={['restaurant']} />}>
@@ -30,16 +33,16 @@ const App = () => {
             <Route path="/restaurant/menu" element={<MenuItemsList />} />
             <Route path="/restaurant/orders" element={<RestaurantOrders />} />
           </Route>
-            <Route element={<ProtectedLayout allowedRoles={['customer']} />}>
+          <Route element={<ProtectedLayout allowedRoles={['customer']} />}>
             <Route path="/create-order" element={<CreateOrder />} />
-        </Route>
-        <Route element={<ProtectedLayout allowedRoles={['delivery']} />}>
+          </Route>
+          <Route element={<ProtectedLayout allowedRoles={['delivery']} />}>
             <Route path="/delivery-admin" element={<DeliveryAdminPanel />} />
             <Route path="/delivery/orders/all" element={<AllOrders />} />
-        </Route>
+          </Route>
         </Routes>
       </BrowserRouter>
-    </div>
+    </CartProvider>
   );
 };
 

@@ -107,12 +107,25 @@ router.get('/delivery/orders', verifyToken, allowRoles('delivery'), async (req, 
 
 // 🍽️ Restaurant fetches incoming orders
 router.get('/restaurant', verifyToken, allowRoles('restaurant'), async (req, res) => {
-  const restaurantId = axios.get('http://restaurant-service:5002/restaurant/api/restaurants-id', {
-    headers: { Authorization: req.headers.authorization }
-  });
-  console.log('Restaurant ID:', restaurantId.data);
-  // const orders = await Order.find({ restaurantId: req.user.id });
-  res.json(orders);
+  try {
+    // Step 1: Get restaurants owned by the user
+    const restaurantRes = await axios.get('http://restaurant-service:5002/restaurant/api/restaurants-id', {
+      headers: { Authorization: req.headers.authorization }
+    });
+
+    const restaurants = restaurantRes.data;
+    const restaurantIds = restaurants.map(r => r._id); 
+
+    console.log('Restaurant IDs:', restaurantIds);
+
+    // Step 3: Fetch orders with matching restaurantId
+    const orders = await Order.find({ restaurantId: { $in: restaurantIds } });
+
+    res.json(orders);
+  } catch (err) {
+    console.error('Error fetching restaurant orders:', err.message);
+    res.status(500).json({ message: 'Failed to fetch restaurant orders' });
+  }
 });
 
 // 🚴 Delivery person fetches all "in-transit" or assigned orders

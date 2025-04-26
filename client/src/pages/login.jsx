@@ -25,13 +25,16 @@ export default function Login() {
       localStorage.setItem("user", JSON.stringify(user));
        toast.success(`Welcome ${role}`);
       if (role === "admin") {
-        window.location.href = "/admin/dashboard"; // Redirect to admin dashboard
-      } else if (role === "user") {
-        window.location.href = "/user/dashboard"; // Redirect to user dashboard
+        window.location.href = "/admin/dashboard"; 
+      } else if (role === "customer") {
+        window.location.href = "/home"; 
       }else if (role === "restaurant") {
-        window.location.href = "/restaurant/profile"; // Redirect to restaurant dashboard
-      } else {
-        window.location.href = "/"; // Redirect to home page for other roles
+        window.location.href = "/restaurant/orders";
+      }else if (role === "delivery") {
+        window.location.href = "/delivery/orders/all"; 
+      } 
+      else {
+        window.location.href = "/"; 
       }
     } catch (err) {
       setError(err.response?.data?.error || "Login failed");

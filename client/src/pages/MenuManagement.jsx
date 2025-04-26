@@ -8,6 +8,8 @@ const MenuManagement = () => {
     description: '',
     price: ''
   });
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -21,36 +23,49 @@ const MenuManagement = () => {
     });
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      setImagePreview(URL.createObjectURL(file)); // Create preview URL
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setSuccess('');
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5020/restaurant/menu', 
-        { 
-          name: menuItem.name,
-          description: menuItem.description,
-          price: parseFloat(menuItem.price)
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      setSuccess('Menu item added successfully!');
-      setMenuItem({
-        name: '',
-        description: '',
-        price: ''
+      const formData = new FormData();
+      formData.append('name', menuItem.name);
+      formData.append('description', menuItem.description);
+      formData.append('price', parseFloat(menuItem.price));
+      if (image) {
+        formData.append('image', image);
+      }
+
+      const response = await axios.post('http://localhost:5020/restaurant/menu', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
       });
-      
+
+      console.log('Menu item added:', response.data); // Debug: Log response
+      setSuccess('Menu item added successfully!');
+      setMenuItem({ name: '', description: '', price: '' });
+      setImage(null);
+      setImagePreview(null);
+
       setTimeout(() => {
         setSuccess('');
       }, 3000);
-      
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add menu item');
+      console.error('Add menu item error:', err);
     } finally {
       setLoading(false);
     }
@@ -62,14 +77,14 @@ const MenuManagement = () => {
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center">
           <h1 className="text-2xl font-bold mb-4 md:mb-0">FoodDelivery</h1>
           <nav className="flex flex-wrap gap-2">
-            <button 
-              onClick={() => navigate('/restaurant/menu')} 
+            <button
+              onClick={() => navigate('/restaurant/menu')}
               className="px-4 py-2 text-black font-medium hover:underline"
             >
               View Menu
             </button>
-            <button 
-              onClick={() => navigate('/')} 
+            <button
+              onClick={() => navigate('/')}
               className="px-4 py-2 text-black font-medium hover:underline"
             >
               Home
@@ -77,23 +92,23 @@ const MenuManagement = () => {
           </nav>
         </div>
       </header>
-      
+
       <main className="flex-1 container mx-auto px-4 py-8 md:py-16">
         <div className="max-w-md mx-auto bg-gray-900 rounded-lg shadow-lg p-6 md:p-8">
           <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">Add Menu Item</h2>
-          
+
           {error && (
             <div className="bg-red-500 text-white p-3 rounded mb-4">
               {error}
             </div>
           )}
-          
+
           {success && (
             <div className="bg-green-500 text-white p-3 rounded mb-4">
               {success}
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label htmlFor="name" className="block text-sm font-medium mb-2">
@@ -110,7 +125,7 @@ const MenuManagement = () => {
                 placeholder="e.g. Margherita Pizza"
               />
             </div>
-            
+
             <div className="mb-4">
               <label htmlFor="description" className="block text-sm font-medium mb-2">
                 Description
@@ -126,8 +141,8 @@ const MenuManagement = () => {
                 placeholder="Describe your dish"
               ></textarea>
             </div>
-            
-            <div className="mb-6">
+
+            <div className="mb-4">
               <label htmlFor="price" className="block text-sm font-medium mb-2">
                 Price ($)
               </label>
@@ -144,7 +159,30 @@ const MenuManagement = () => {
                 placeholder="9.99"
               />
             </div>
-            
+
+            <div className="mb-6">
+              <label htmlFor="image" className="block text-sm font-medium mb-2">
+                Item Image
+              </label>
+              <input
+                type="file"
+                id="image"
+                name="image"
+                accept="image/jpeg,image/jpg,image/png"
+                onChange={handleImageChange}
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+              {imagePreview && (
+                <div className="mt-4">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded"
+                  />
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -155,9 +193,9 @@ const MenuManagement = () => {
           </form>
         </div>
       </main>
-      
+
       <footer className="bg-gray-900 text-white text-center py-4">
-        <p>&copy; {new Date().getFullYear()} FoodDelivery. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} FoodDelivery. All rights reserved.</p>
       </footer>
     </div>
   );

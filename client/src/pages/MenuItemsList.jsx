@@ -23,9 +23,16 @@ const MenuItemsList = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      console.log('Fetched menu items:', response.data); // Debug: Log full response
+      response.data.forEach(item => {
+        if (item.imageUrl) {
+          console.log('Image URL for', item.name, ':', item.imageUrl);
+        }
+      });
       setMenuItems(response.data);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch menu items');
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -40,10 +47,10 @@ const MenuItemsList = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Remove the deleted item from the state
       setMenuItems(menuItems.filter(item => item._id !== id));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete menu item');
+      console.error('Delete error:', err);
     } finally {
       setDeleteLoading(null);
     }
@@ -62,7 +69,7 @@ const MenuItemsList = () => {
               Add Menu Item
             </button>
             <button 
-              onClick={() => navigate('/')} 
+              onClick={() => navigate('/home')} 
               className="px-4 py-2 text-black font-medium hover:underline"
             >
               Home
@@ -102,6 +109,21 @@ const MenuItemsList = () => {
                 key={item._id} 
                 className="bg-gray-900 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition duration-200"
               >
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="w-full h-48 object-cover"
+                    onError={(e) => {
+                      console.error(`Failed to load image: ${item.imageUrl}`);
+                      e.target.src = 'https://via.placeholder.com/150?text=No+Image';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-gray-800 flex items-center justify-center">
+                    <span className="text-gray-400">No Image</span>
+                  </div>
+                )}
                 <div className="p-6">
                   <h3 className="text-xl font-bold mb-2">{item.name}</h3>
                   <p className="text-gray-400 mb-4">{item.description}</p>
@@ -123,7 +145,7 @@ const MenuItemsList = () => {
       </main>
       
       <footer className="bg-gray-900 text-white text-center py-4 mt-8">
-        <p>&copy; {new Date().getFullYear()} FoodDelivery. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} FoodDelivery. All rights reserved.</p>
       </footer>
     </div>
   );

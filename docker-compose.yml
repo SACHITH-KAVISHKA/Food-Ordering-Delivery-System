@@ -11,6 +11,7 @@ services:
       - PORT=5001
       - MONGO_URI=mongodb://mongo:27017/authdb
       - JWT_SECRET=supersecret123
+      
 
   restaurant-service:
     build: ./restaurant-service
@@ -22,6 +23,9 @@ services:
       - PORT=5002
       - MONGO_URI=mongodb://mongo:27017/restaurant-db
       - JWT_SECRET=supersecret123
+      - CLOUDINARY_CLOUD_NAME=dhkwjpxos
+      - CLOUDINARY_API_KEY=462713631227229
+      - CLOUDINARY_API_SECRET=iCrDe5L2tClDf_6l1gwRmib6rEo
 
   order-service:
     build: ./order-service

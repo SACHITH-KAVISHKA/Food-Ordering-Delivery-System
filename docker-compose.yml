@@ -62,9 +62,9 @@ services:
     ports:
       - "27017:27017"
   
-  frontend:
-    build: ./client
-    ports:
-      - "3000:3000"
-    stdin_open: true
-    tty: true
+  # frontend:
+  #   build: ./client
+  #   ports:
+  #     - "3000:3000"
+  #   stdin_open: true
+  #   tty: true

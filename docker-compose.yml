@@ -61,6 +61,19 @@ services:
       - EMAIL_FROM=your@gmail.com
       - EMAIL_PASS=your_email_password
 
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    ports:
+      - "5080:5008"
+    environment:
+      - PORT=5008
+      - STRIPE_SECRET_KEY=sk_test_51RI9874e6xqWU2EYKJgoMiJYh0kRNY78mWwXlAoI2MkYyJcC7UxAXGGIuuoaeSYa3Q0Qre6Dkcvy6R9kJ9ffabP400o4J8Jh5k
+      - JWT_SECRET=supersecret123
+      - MONGO_URI=mongodb://mongo:27017/payment-db
+    depends_on:
+      - mongo
   mongo:
     image: mongo
     ports:

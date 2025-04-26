@@ -33,20 +33,71 @@ const NOTIFY_SERVICE_URL = process.env.NOTIFY_SERVICE_URL;
   
 
 // 🧑 Customer places an order
+// router.post('/create', verifyToken, allowRoles('customer'), async (req, res) => {
+//   const { restaurantId, items, location } = req.body;
+//   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+//   const order = new Order({
+//     customerId: req.user.id,
+//     restaurantId,
+//     items,
+//     total,
+//     location
+//   });
+
+//   await order.save();
+//   res.status(201).json({ message: 'Order created', order });
+// });
+
 router.post('/create', verifyToken, allowRoles('customer'), async (req, res) => {
-  const { restaurantId, items, location } = req.body;
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const { restaurantId, items, deliveryLocation, paymentIntentId } = req.body;
 
-  const order = new Order({
-    customerId: req.user.id,
-    restaurantId,
-    items,
-    total,
-    location
-  });
+  if (!restaurantId || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: 'Restaurant ID and items are required' });
+  }
+  if (!deliveryLocation || typeof deliveryLocation.latitude !== 'number' || typeof deliveryLocation.longitude !== 'number') {
+    return res.status(400).json({ message: 'Valid delivery location (latitude and longitude) is required' });
+  }
+  if (!paymentIntentId) {
+    return res.status(400).json({ message: 'Payment Intent ID is required' });
+  }
 
-  await order.save();
-  res.status(201).json({ message: 'Order created', order });
+  try {
+    const paymentResponse = await axios.get(
+      `http://payment-service:5008/payment/verify-payment/${paymentIntentId}`,
+      {
+        headers: { Authorization: `Bearer ${req.headers.authorization.split(' ')[1]}` }
+      }
+    );
+
+    if (paymentResponse.data.status !== 'succeeded') {
+      return res.status(400).json({ message: 'Payment not successful' });
+    }
+
+    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const order = new Order({
+      customerId: req.user.id,
+      restaurantId,
+      items,
+      total,
+      deliveryLocation,
+      paymentIntentId
+    });
+
+    await order.save();
+
+    await axios.post(
+      `http://payment-service:5008/payment/update/${paymentIntentId}`,
+      { orderId: order._id },
+      { headers: { Authorization: `Bearer ${req.headers.authorization.split(' ')[1]}` } }
+    );
+
+    res.status(201).json({ message: 'Order created', order });
+  } catch (err) {
+    console.error('Order creation error:', err);
+    res.status(500).json({ message: 'Failed to create order' });
+  }
 });
 
 // get orders

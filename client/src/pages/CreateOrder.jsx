@@ -2,6 +2,79 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../CartContext';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = loadStripe('pk_test_51RI9874e6xqWU2EYoGgGnz3gfFMf1oxR1q28DocuY8CjsprENfOdjJxhJTSHiyxukALW01jFjdbbC1Ng73g0gHhI00Ipm2d3Qt');
+
+const CheckoutForm = ({ onSuccess, onError, setLoading, selectedPaymentMethod, billingDetails }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [paymentError, setPaymentError] = useState('');
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!stripe || (!elements && !selectedPaymentMethod)) return;
+  
+    setLoading(true);
+    try {
+      const confirmParams = {
+        return_url: window.location.origin,
+      };
+  
+      let result;
+      if (selectedPaymentMethod) {
+        // For saved payment methods, only pass the payment_method ID
+        result = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: selectedPaymentMethod,
+        }, confirmParams);
+      } else {
+        // For new payment methods, include billing_details in payment_method
+        result = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            ...confirmParams,
+            payment_method_data: {
+              billing_details: billingDetails,
+            },
+          },
+          redirect: 'if_required',
+        });
+      }
+  
+      const { error, paymentIntent } = result;
+  
+      if (error) {
+        setPaymentError(error.message);
+        onError(error);
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        onSuccess(paymentIntent.id);
+      }
+    } catch (err) {
+      setPaymentError('Payment failed');
+      onError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-gray-900 p-6 rounded-lg">
+      <h3 className="text-xl font-bold mb-4 text-white">Payment Details</h3>
+      {paymentError && <div className="text-red-500 mb-4">{paymentError}</div>}
+      <form onSubmit={handleSubmit}>
+        {!selectedPaymentMethod && <PaymentElement />}
+        <button
+          type="submit"
+          disabled={!stripe || (!elements && !selectedPaymentMethod)}
+          className="w-full py-3 mt-4 rounded bg-yellow-500 text-black hover:bg-yellow-600 disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          Pay Now
+        </button>
+      </form>
+    </div>
+  );
+};
 
 const CreateOrder = () => {
   const { cart, addToCart, removeFromCart, clearCart } = useContext(CartContext);
@@ -10,17 +83,26 @@ const CreateOrder = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [location, setLocation] = useState(null);
+  const [deliveryLocation, setDeliveryLocation] = useState(null);
   const [address, setAddress] = useState('');
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [orderData, setOrderData] = useState(null);
+  const [clientSecret, setClientSecret] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [billingDetails, setBillingDetails] = useState({
+    name: '',
+    email: '',
+    address: { line1: '', city: '', state: '', postal_code: '', country: 'US' }
+  });
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const navigate = useNavigate();
 
-  // Debug: Log cart on render
   useEffect(() => {
     console.log('Cart in CreateOrder:', cart);
   }, [cart]);
 
-  // Fetch all restaurants
   useEffect(() => {
     const fetchRestaurants = async () => {
       try {
@@ -28,18 +110,52 @@ const CreateOrder = () => {
         const response = await axios.get('http://localhost:5030/order/restaurants', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        console.log('Fetched restaurants:', response.data); // Debug
+        console.log('Fetched restaurants:', response.data);
         setRestaurants(response.data);
       } catch (err) {
         setError('Failed to fetch restaurants');
         console.error('Restaurant fetch error:', err);
       }
     };
-
     fetchRestaurants();
   }, []);
 
-  // Fetch menu items for selected restaurant
+  useEffect(() => {
+    const fetchPaymentMethods = async () => {
+      setLoadingPaymentMethods(true);
+      try {
+        const token = localStorage.getItem('token');
+        const email = billingDetails.email || 'default@example.com';
+        const name = billingDetails.name || 'Default User';
+        console.log('Fetching payment methods with:', { email, name });
+  
+        const response = await axios.post(
+          'http://localhost:5080/payment/customer',
+          { email, name },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+  
+        console.log('Payment methods response:', response.data);
+  
+        // Ensure paymentMethods is an array
+        const methods = response.data.paymentMethods || [];
+        setPaymentMethods(methods);
+        if (methods.length === 0) {
+          console.log('No payment methods found for this customer.');
+        }
+      } catch (err) {
+        console.error('Payment methods fetch error:', err.response?.data || err.message);
+        setError('Failed to load payment methods');
+      } finally {
+        setLoadingPaymentMethods(false);
+      }
+    };
+  
+    if (billingDetails.email && billingDetails.name) {
+      fetchPaymentMethods();
+    }
+  }, [billingDetails.email, billingDetails.name]);
+
   useEffect(() => {
     if (!selectedRestaurant) {
       setMenuItems([]);
@@ -52,14 +168,13 @@ const CreateOrder = () => {
         const response = await axios.get(`http://localhost:5030/order/restaurant/${selectedRestaurant}/menu`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        console.log('Fetched menu items:', response.data); // Debug
+        console.log('Fetched menu items:', response.data);
         setMenuItems(response.data);
       } catch (err) {
         setError('Failed to fetch menu items');
         console.error('Menu fetch error:', err);
       }
     };
-
     fetchMenuItems();
   }, [selectedRestaurant]);
 
@@ -70,33 +185,38 @@ const CreateOrder = () => {
     return displayedCartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  // Get user's current location
   const getCurrentLocation = () => {
     setLoadingLocation(true);
     setError('');
-    
+
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser');
       setLoadingLocation(false);
       return;
     }
-    
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const coords = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
         };
-        setLocation(coords);
-        
-        // Reverse geocoding to get address
+        setDeliveryLocation(coords);
+
         try {
           const response = await axios.get(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coords.lat},${coords.lng}&key=YOUR_GOOGLE_MAPS_API_KEY`
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coords.latitude},${coords.longitude}&key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}`
           );
-          
+
           if (response.data.results && response.data.results.length > 0) {
             setAddress(response.data.results[0].formatted_address);
+            setBillingDetails(prev => ({
+              ...prev,
+              address: {
+                ...prev.address,
+                line1: response.data.results[0].formatted_address
+              }
+            }));
           } else {
             setAddress('Address not found');
           }
@@ -104,7 +224,7 @@ const CreateOrder = () => {
           console.error('Geocoding error:', err);
           setAddress('Failed to get address');
         }
-        
+
         setLoadingLocation(false);
       },
       (error) => {
@@ -114,14 +234,19 @@ const CreateOrder = () => {
     );
   };
 
-  const placeOrder = async () => {
+  const initiatePayment = async () => {
     if (cart.length === 0 || !selectedRestaurant) {
       setError('Cart is empty or no restaurant selected');
       return;
     }
 
-    if (!location) {
+    if (!deliveryLocation) {
       setError('Please provide your delivery location');
+      return;
+    }
+
+    if (!billingDetails.name || !billingDetails.email || !billingDetails.address.line1) {
+      setError('Please provide complete billing details');
       return;
     }
 
@@ -131,32 +256,66 @@ const CreateOrder = () => {
       return;
     }
 
-    setLoading(true);
-    setError('');
-
-    try {
-      const token = localStorage.getItem('token');
-      const formattedItems = orderItems.map(item => ({
+    const newOrderData = {
+      restaurantId: selectedRestaurant,
+      items: orderItems.map(item => ({
         _id: item._id,
         name: item.name,
         price: item.price,
         quantity: item.quantity
-      }));
+      })),
+      total: calculateTotal(),
+      deliveryLocation
+    };
 
-      await axios.post('http://localhost:5030/order/create',
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        'http://localhost:5080/payment/create-payment-intent',
         {
-          restaurantId: selectedRestaurant,
-          items: formattedItems,
-          location: {
-            address: address,
-            coordinates: location
-          }
+          amount: newOrderData.total * 100, // Convert to cents
+          currency: 'usd',
+          metadata: { restaurantId: newOrderData.restaurantId },
+          billingDetails
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setClientSecret(response.data.clientSecret);
+      setOrderData(newOrderData);
+      setShowPaymentModal(true);
+    } catch (err) {
+      setError('Failed to initialize payment');
+      console.error('Payment initialization error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (paymentIntentId) => {
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      const orderResponse = await axios.post(
+        'http://localhost:5030/order/create',
+        {
+          restaurantId: orderData.restaurantId,
+          items: orderData.items,
+          deliveryLocation: orderData.deliveryLocation,
+          paymentIntentId
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Clear cart
+      await axios.post(
+        `http://localhost:5080/payment/update/${paymentIntentId}`,
+        { orderId: orderResponse.data.order._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
       clearCart();
+      setShowPaymentModal(false);
       navigate('/orders');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to place order');
@@ -166,12 +325,16 @@ const CreateOrder = () => {
     }
   };
 
-  // Display cart items, filtered by selected restaurant if set
+  const handlePaymentError = (err) => {
+    setError(err.message || 'Payment failed');
+    setLoading(false);
+  };
+
   const displayedCartItems = selectedRestaurant
     ? cart.filter(item => item.restaurantId === selectedRestaurant)
     : cart;
 
-  console.log('Displayed cart items:', displayedCartItems); // Debug
+  console.log('Displayed cart items:', displayedCartItems);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
@@ -193,13 +356,10 @@ const CreateOrder = () => {
         <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">Create Order</h2>
 
         {error && (
-          <div className="bg-red-500 text-white p-3 rounded mb-4">
-            {error}
-          </div>
+          <div className="bg-red-500 text-white p-3 rounded mb-4">{error}</div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Restaurant Selection */}
           <div className="lg:col-span-1 bg-gray-900 rounded-lg shadow-lg p-6">
             <h3 className="text-xl font-bold mb-4">Select Restaurant</h3>
             <select
@@ -216,7 +376,6 @@ const CreateOrder = () => {
             </select>
           </div>
 
-          {/* Menu Items */}
           <div className="lg:col-span-2">
             <h3 className="text-xl font-bold mb-4">Menu Items</h3>
             {selectedRestaurant ? (
@@ -247,7 +406,6 @@ const CreateOrder = () => {
           </div>
         </div>
 
-        {/* Location Selection */}
         <div className="mt-8 bg-gray-900 rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-bold mb-4">Delivery Location</h3>
           <div className="flex flex-col md:flex-row items-start gap-4">
@@ -256,7 +414,13 @@ const CreateOrder = () => {
               <input
                 type="text"
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setBillingDetails(prev => ({
+                    ...prev,
+                    address: { ...prev.address, line1: e.target.value }
+                  }));
+                }}
                 placeholder="Enter your delivery address"
                 className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
               />
@@ -269,15 +433,92 @@ const CreateOrder = () => {
               {loadingLocation ? 'Getting location...' : 'Use Current Location'}
             </button>
           </div>
-          {location && (
+          {deliveryLocation && (
             <div className="mt-4">
               <p className="text-green-500">✓ Location captured</p>
-              <p className="text-sm text-gray-400">Lat: {location.lat.toFixed(6)}, Lng: {location.lng.toFixed(6)}</p>
+              <p className="text-sm text-gray-400">Lat: {deliveryLocation.latitude.toFixed(6)}, Lng: {deliveryLocation.longitude.toFixed(6)}</p>
             </div>
           )}
         </div>
 
-        {/* Cart */}
+        <div className="mt-8 bg-gray-900 rounded-lg shadow-lg p-6">
+          <h3 className="text-xl font-bold mb-4">Billing Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-400 mb-2">Full Name</label>
+              <input
+                type="text"
+                value={billingDetails.name}
+                onChange={(e) => setBillingDetails(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter your full name"
+                className="w-full px-4 py-3 rounded bg-gray-800 border border/concepts/dependency-management.md-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 mb-2">Email</label>
+              <input
+                type="email"
+                value={billingDetails.email}
+                onChange={(e) => setBillingDetails(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter your email"
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 mb-2">City</label>
+              <input
+                type="text"
+                value={billingDetails.address.city}
+                onChange={(e) => setBillingDetails(prev => ({
+                  ...prev,
+                  address: { ...prev.address, city: e.target.value }
+                }))}
+                placeholder="Enter your city"
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 mb-2">State</label>
+              <input
+                type="text"
+                value={billingDetails.address.state}
+                onChange={(e) => setBillingDetails(prev => ({
+                  ...prev,
+                  address: { ...prev.address, state: e.target.value }
+                }))}
+                placeholder="Enter your state"
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 mb-2">Postal Code</label>
+              <input
+                type="text"
+                value={billingDetails.address.postal_code}
+                onChange={(e) => setBillingDetails(prev => ({
+                  ...prev,
+                  address: { ...prev.address, postal_code: e.target.value }
+                }))}
+                placeholder="Enter your postal code"
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 mb-2">Country</label>
+              <input
+                type="text"
+                value={billingDetails.address.country}
+                onChange={(e) => setBillingDetails(prev => ({
+                  ...prev,
+                  address: { ...prev.address, country: e.target.value }
+                }))}
+                placeholder="Enter your country"
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="mt-10 bg-gray-900 rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-bold mb-4">Your Order</h3>
           {cart.length > 0 ? (
@@ -318,21 +559,64 @@ const CreateOrder = () => {
                 <span>Total:</span>
                 <span className="text-yellow-500">${calculateTotal().toFixed(2)}</span>
               </div>
+                  <div className="mb-4">
+                    <label className="block text-gray-400 mb-2">Payment Method</label>
+                    {loadingPaymentMethods ? (
+                      <p className="text-gray-400">Loading payment methods...</p>
+                    ) : paymentMethods.length === 0 ? (
+                      <p className="text-gray-400">No saved payment methods. Add a new one below.</p>
+                    ) : (
+                      <select
+                        value={selectedPaymentMethod}
+                        onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                        className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      >
+                        <option value="">Add new payment method</option>
+                        {paymentMethods.map((pm) => (
+                          <option key={pm.id} value={pm.id}>
+                            {pm.card.brand.toUpperCase()} ending in {pm.card.last4}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
               <button
-                onClick={placeOrder}
-                disabled={loading || displayedCartItems.length === 0 || !location}
-                className={`w-full py-3 px-4 rounded font-medium bg-yellow-500 text-black hover:bg-yellow-600 transition duration-200 ${loading || displayedCartItems.length === 0 || !location ? 'opacity-70 cursor-not-allowed' : ''}`}
+                onClick={initiatePayment}
+                disabled={loading || displayedCartItems.length === 0 || !deliveryLocation}
+                className={`w-full py-3 px-4 rounded font-medium bg-yellow-500 text-black hover:bg-yellow-600 transition duration-200 ${loading || displayedCartItems.length === 0 || !deliveryLocation ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                {loading ? 'Placing Order...' : 'Place Order'}
+                {loading ? 'Processing...' : 'Proceed to Payment'}
               </button>
-              {!location && displayedCartItems.length > 0 && (
-                <p className="text-yellow-500 text-sm mt-2">Please provide your delivery location to place the order.</p>
+              {!deliveryLocation && displayedCartItems.length > 0 && (
+                <p className="text-yellow-500 text-sm mt-2">Please provide your delivery location to proceed.</p>
               )}
             </>
           ) : (
             <p className="text-gray-400">Your cart is empty. Add items from the menu to place an order.</p>
           )}
         </div>
+
+        {showPaymentModal && clientSecret && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md relative">
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="absolute top-2 right-2 text-white hover:text-yellow-500"
+              >
+                ✕
+              </button>
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <CheckoutForm
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                  setLoading={setLoading}
+                  selectedPaymentMethod={selectedPaymentMethod}
+                  billingDetails={billingDetails}
+                />
+              </Elements>
+            </div>
+          </div>
+        )}
       </main>
 
       <footer className="bg-gray-900 text-white text-center py-4">

@@ -23,7 +23,8 @@ const orderSchema = new mongoose.Schema({
       lat: Number,
       lng: Number
     }
-  }
+  },
+  paymentIntentId: String
 });
 
 module.exports = mongoose.model('Order', orderSchema);

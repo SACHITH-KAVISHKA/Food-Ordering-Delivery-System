@@ -57,6 +57,17 @@ services:
       - EMAIL_FROM=your@gmail.com
       - EMAIL_PASS=your_email_password
 
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "5050:5005"
+    depends_on:
+      - order-service
+    environment:
+      - PORT=5005
+      - ORDER_SERVICE_URL=http://order-service:5003
+      
   mongo:
     image: mongo
     ports:

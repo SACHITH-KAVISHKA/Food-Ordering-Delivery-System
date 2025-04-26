@@ -23,7 +23,8 @@ const Home = () => {
                 <button className="mr-4">
                 <Menu size={24} color="black" />
                 </button>
-                <h1 className="font-sans font-bold text-xl">Eatzaa</h1>
+                <h1 className="font-sans font-bold text-xl"><span className="text-black">Eat</span>
+                <span className="text-green-500">zaa</span></h1>
               </div>
               <div className="flex gap-2">
                 {localStorage.getItem('user') ? (

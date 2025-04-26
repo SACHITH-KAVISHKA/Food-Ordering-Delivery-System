@@ -23,8 +23,8 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/home" element={<HomeAll />} />
           <Route element={<ProtectedLayout />}>
-            <Route path="/home" element={<HomeAll />} />
             <Route path="/orders" element={<OrderHistory />} />
           </Route>
           <Route element={<ProtectedLayout allowedRoles={['restaurant']} />}>

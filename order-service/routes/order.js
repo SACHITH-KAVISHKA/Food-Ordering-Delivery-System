@@ -34,7 +34,7 @@ const NOTIFY_SERVICE_URL = process.env.NOTIFY_SERVICE_URL;
 
 // 🧑 Customer places an order
 router.post('/create', verifyToken, allowRoles('customer'), async (req, res) => {
-  const { restaurantId, items } = req.body;
+  const { restaurantId, items, location } = req.body;
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const order = new Order({
@@ -42,6 +42,7 @@ router.post('/create', verifyToken, allowRoles('customer'), async (req, res) => 
     restaurantId,
     items,
     total,
+    location
   });
 
   await order.save();
@@ -57,6 +58,7 @@ router.get('/customer/orders', verifyToken, allowRoles('customer'), async (req, 
 
 router.get('/delevery/allorders', verifyToken, allowRoles('delivery'), async (req, res) => {
   const orders = await Order.find({ status: { $ne: 'delivered' } });
+  console.log('All orders:', orders);
   res.json(orders);
 });
 
@@ -73,7 +75,7 @@ router.get('/delivery/orders', verifyToken, allowRoles('delivery'), async (req, 
       },
       {
         $lookup: {
-          from: 'users', // Name of the User collection
+          from: 'users',
           localField: 'deliveryPersonId',
           foreignField: '_id',
           as: 'deliveryPerson'
@@ -82,7 +84,7 @@ router.get('/delivery/orders', verifyToken, allowRoles('delivery'), async (req, 
       {
         $unwind: {
           path: '$deliveryPerson',
-          preserveNullAndEmptyArrays: true // Keep orders without deliveryPersonId
+          preserveNullAndEmptyArrays: true
         }
       },
       {
@@ -93,17 +95,19 @@ router.get('/delivery/orders', verifyToken, allowRoles('delivery'), async (req, 
           total: 1,
           createdAt: 1,
           deliveryPersonId: 1,
-          deliveryPersonName: '$deliveryPerson.username' 
+          deliveryPersonName: '$deliveryPerson.username',
+          location: 1 // <-- include location
         }
       }
     ]);
-
+    console.log('Delivery orders:', orders);
     res.json(orders);
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: 'Error fetching delivery orders' });
   }
 });
+
 
 // 🍽️ Restaurant fetches incoming orders
 router.get('/restaurant', verifyToken, allowRoles('restaurant'), async (req, res) => {

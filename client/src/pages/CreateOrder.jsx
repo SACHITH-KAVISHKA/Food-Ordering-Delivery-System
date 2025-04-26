@@ -10,6 +10,9 @@ const CreateOrder = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [location, setLocation] = useState(null);
+  const [address, setAddress] = useState('');
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const navigate = useNavigate();
 
   // Debug: Log cart on render
@@ -67,9 +70,58 @@ const CreateOrder = () => {
     return displayedCartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
+  // Get user's current location
+  const getCurrentLocation = () => {
+    setLoadingLocation(true);
+    setError('');
+    
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser');
+      setLoadingLocation(false);
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setLocation(coords);
+        
+        // Reverse geocoding to get address
+        try {
+          const response = await axios.get(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coords.lat},${coords.lng}&key=YOUR_GOOGLE_MAPS_API_KEY`
+          );
+          
+          if (response.data.results && response.data.results.length > 0) {
+            setAddress(response.data.results[0].formatted_address);
+          } else {
+            setAddress('Address not found');
+          }
+        } catch (err) {
+          console.error('Geocoding error:', err);
+          setAddress('Failed to get address');
+        }
+        
+        setLoadingLocation(false);
+      },
+      (error) => {
+        setError(`Failed to get location: ${error.message}`);
+        setLoadingLocation(false);
+      }
+    );
+  };
+
   const placeOrder = async () => {
     if (cart.length === 0 || !selectedRestaurant) {
       setError('Cart is empty or no restaurant selected');
+      return;
+    }
+
+    if (!location) {
+      setError('Please provide your delivery location');
       return;
     }
 
@@ -94,7 +146,11 @@ const CreateOrder = () => {
       await axios.post('http://localhost:5030/order/create',
         {
           restaurantId: selectedRestaurant,
-          items: formattedItems
+          items: formattedItems,
+          location: {
+            address: address,
+            coordinates: location
+          }
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -124,7 +180,7 @@ const CreateOrder = () => {
           <h1 className="text-2xl font-bold mb-4 md:mb-0">FoodDelivery</h1>
           <nav className="flex flex-wrap gap-2">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/home')}
               className="px-4 py-2 text-black font-medium hover:underline"
             >
               Home
@@ -191,6 +247,36 @@ const CreateOrder = () => {
           </div>
         </div>
 
+        {/* Location Selection */}
+        <div className="mt-8 bg-gray-900 rounded-lg shadow-lg p-6">
+          <h3 className="text-xl font-bold mb-4">Delivery Location</h3>
+          <div className="flex flex-col md:flex-row items-start gap-4">
+            <div className="flex-1 w-full">
+              <label className="block text-gray-400 mb-2">Delivery Address</label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Enter your delivery address"
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
+            <button
+              onClick={getCurrentLocation}
+              disabled={loadingLocation}
+              className={`px-4 py-3 mt-4 md:mt-8 rounded bg-blue-600 text-white hover:bg-blue-700 ${loadingLocation ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              {loadingLocation ? 'Getting location...' : 'Use Current Location'}
+            </button>
+          </div>
+          {location && (
+            <div className="mt-4">
+              <p className="text-green-500">✓ Location captured</p>
+              <p className="text-sm text-gray-400">Lat: {location.lat.toFixed(6)}, Lng: {location.lng.toFixed(6)}</p>
+            </div>
+          )}
+        </div>
+
         {/* Cart */}
         <div className="mt-10 bg-gray-900 rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-bold mb-4">Your Order</h3>
@@ -234,11 +320,14 @@ const CreateOrder = () => {
               </div>
               <button
                 onClick={placeOrder}
-                disabled={loading || displayedCartItems.length === 0}
-                className={`w-full py-3 px-4 rounded font-medium bg-yellow-500 text-black hover:bg-yellow-600 transition duration-200 ${loading || displayedCartItems.length === 0 ? 'opacity-70 cursor-not-allowed' : ''}`}
+                disabled={loading || displayedCartItems.length === 0 || !location}
+                className={`w-full py-3 px-4 rounded font-medium bg-yellow-500 text-black hover:bg-yellow-600 transition duration-200 ${loading || displayedCartItems.length === 0 || !location ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {loading ? 'Placing Order...' : 'Place Order'}
               </button>
+              {!location && displayedCartItems.length > 0 && (
+                <p className="text-yellow-500 text-sm mt-2">Please provide your delivery location to place the order.</p>
+              )}
             </>
           ) : (
             <p className="text-gray-400">Your cart is empty. Add items from the menu to place an order.</p>
@@ -247,7 +336,7 @@ const CreateOrder = () => {
       </main>
 
       <footer className="bg-gray-900 text-white text-center py-4">
-        <p>© {new Date().getFullYear()} FoodDelivery. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Eatzaa. All rights reserved.</p>
       </footer>
     </div>
   );

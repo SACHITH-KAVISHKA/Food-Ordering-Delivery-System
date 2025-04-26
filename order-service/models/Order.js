@@ -16,7 +16,14 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'accepted', 'in-transit', 'delivered'],
     default: 'pending'
   },
-  deliveryPersonId: String 
+  deliveryPersonId: String,
+  location: {
+    address: String,
+    coordinates: {
+      lat: Number,
+      lng: Number
+    }
+  }
 });
 
 module.exports = mongoose.model('Order', orderSchema);

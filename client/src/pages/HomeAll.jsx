@@ -138,7 +138,7 @@ const HomeAll = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <button
+            {/* <button
               className="flex items-center text-black px-3 py-2"
               onClick={() => navigate('/delivery-timing')}
             >
@@ -146,7 +146,7 @@ const HomeAll = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Deliver now
-            </button>
+            </button> */}
             
             <div className="relative">
               <button

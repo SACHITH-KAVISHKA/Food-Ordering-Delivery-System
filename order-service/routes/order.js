@@ -201,6 +201,7 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
 
   const validStatus = ['accepted', 'in-transit', 'delivered'];
   if (!validStatus.includes(status)) {
+    res.json({ message: 'jasmlk 1' });
     return res.status(400).json({ message: 'Invalid status' });
   }
 
@@ -210,6 +211,7 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
   order.status = status;
 
   if (req.user.role === 'delivery' && status === 'in-transit') {
+        res.json({ message: 'jasmlk 2' });
     order.deliveryPersonId = req.user.id;
   }
 
@@ -217,10 +219,11 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
 
   // 🔔 Notify customer based on status
   const fakeCustomerPhone = '+94761111222';
-  const fakeCustomerEmail = 'customer@example.com';
+  const fakeCustomerEmail = 'jayaisurusamarakoon2@gmail.com';
 
   try {
     if (status === 'accepted') {
+          res.json({ message: 'jasmlk 3' });
       await axios.post(`${NOTIFY_SERVICE_URL}/notify/email`, {
         to: fakeCustomerEmail,
         subject: 'Your order has been accepted!',
@@ -229,6 +232,7 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
     }
 
     if (status === 'in-transit') {
+          res.json({ message: 'jasmlk 4' });
       await axios.post(`${NOTIFY_SERVICE_URL}/notify/sms`, {
         to: fakeCustomerPhone,
         message: `🚴 Your delivery is now on the way!`
@@ -236,6 +240,7 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
     }
 
     if (status === 'delivered') {
+          res.json({ message: 'jasmlk 5' });
       await axios.post(`${NOTIFY_SERVICE_URL}/notify/email`, {
         to: fakeCustomerEmail,
         subject: 'Order Delivered!',

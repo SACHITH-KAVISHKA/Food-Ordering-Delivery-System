@@ -42,4 +42,12 @@ https://github.com/SACHITH-KAVISHKA/Food-Ordering-Delivery-System.git
 ```bash
 docker-compose up --build
 
+4. **Run with Docker Compose:**
+```bash
+kubectl apply -f k8s/all-services.yaml,
+kubectl cluster-info,
+kubectl get pods
+
+
+
 

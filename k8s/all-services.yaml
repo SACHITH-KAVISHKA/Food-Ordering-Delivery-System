@@ -285,5 +285,21 @@ metadata:
   name: app-config
   labels:
     app: config
-...
+data:
+  TWILIO_PHONE: "+1234567890"
+  EMAIL_FROM: "sachithkavishka0001@gmail.com"
+---
+# Secrets (app-secrets)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  labels:
+    app: secrets
+stringData:
+  TWILIO_ACCOUNT_SID: "ACxxxxxxxxxxxxxxxxxxxx"
+  TWILIO_AUTH_TOKEN: "xxxxxxxxxxxxxxxxxxxxxxxx"
+  EMAIL_PASS: "yourappassword"
+  STRIPE_SECRET_KEY: "sk_test_xxxxxxxxxxxxxxxxxxxx"
+  JWT_SECRET: "yourjwtsecret"
 

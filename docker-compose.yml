@@ -53,13 +53,8 @@ services:
     build: ./notification-service
     ports:
       - "5060:5006"
-    environment:
-      - PORT=5006
-      - TWILIO_ACCOUNT_SID=your_twilio_sid
-      - TWILIO_AUTH_TOKEN=your_twilio_auth_token
-      - TWILIO_PHONE=+1234567890
-      - EMAIL_FROM=your@gmail.com
-      - EMAIL_PASS=your_email_password
+    env_file:
+      - ./notification-service/.env
 
   payment-service:
     build:
@@ -74,6 +69,19 @@ services:
       - MONGO_URI=mongodb://mongo:27017/payment-db
     depends_on:
       - mongo
+
+  restaurant-service-j:
+    build: ./restaurent-service-j
+    ports:
+      - "6010:6001"
+    env_file:
+      - ./restaurent-service-j/.env
+  order-service-j:
+    build: ./order-service-j
+    ports:
+      - "6020:6002"
+    env_file:
+      - ./order-service-j/.env
   mongo:
     image: mongo
     ports:

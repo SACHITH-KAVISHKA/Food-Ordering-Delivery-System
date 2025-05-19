@@ -11,6 +11,7 @@ services:
       - PORT=5001
       - MONGO_URI=mongodb://mongo:27017/authdb
       - JWT_SECRET=supersecret123
+      
 
   restaurant-service:
     build: ./restaurant-service
@@ -22,6 +23,9 @@ services:
       - PORT=5002
       - MONGO_URI=mongodb://mongo:27017/restaurant-db
       - JWT_SECRET=supersecret123
+      - CLOUDINARY_CLOUD_NAME=dhkwjpxos
+      - CLOUDINARY_API_KEY=462713631227229
+      - CLOUDINARY_API_SECRET=iCrDe5L2tClDf_6l1gwRmib6rEo
 
   order-service:
     build: ./order-service
@@ -57,7 +61,27 @@ services:
       - EMAIL_FROM=your@gmail.com
       - EMAIL_PASS=your_email_password
 
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    ports:
+      - "5080:5008"
+    environment:
+      - PORT=5008
+      - STRIPE_SECRET_KEY=sk_test_51RI9874e6xqWU2EYKJgoMiJYh0kRNY78mWwXlAoI2MkYyJcC7UxAXGGIuuoaeSYa3Q0Qre6Dkcvy6R9kJ9ffabP400o4J8Jh5k
+      - JWT_SECRET=supersecret123
+      - MONGO_URI=mongodb://mongo:27017/payment-db
+    depends_on:
+      - mongo
   mongo:
     image: mongo
     ports:
       - "27017:27017"
+  
+  # frontend:
+  #   build: ./client
+  #   ports:
+  #     - "3000:3000"
+  #   stdin_open: true
+  #   tty: true

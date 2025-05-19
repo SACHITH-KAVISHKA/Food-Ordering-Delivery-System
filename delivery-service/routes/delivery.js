@@ -8,7 +8,21 @@ const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL;
 // 🚚 Get assigned or available orders
 router.get('/orders', verifyToken, allowRoles('delivery'), async (req, res) => {
   try {
-    const response = await axios.get(`${ORDER_SERVICE_URL}/order/delivery`, {
+    const response = await axios.get(`http://order-service:5003/order/delivery/orders`, {
+      headers: {
+        Authorization: req.headers.authorization
+      }
+    });
+    res.json(response.data);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Error fetching delivery orders' });
+  }
+});
+
+router.get('/all', verifyToken, allowRoles('delivery'), async (req, res) => {
+  try {
+    const response = await axios.get(`http://order-service:5003/order/delevery/allorders`, {
       headers: {
         Authorization: req.headers.authorization
       }
@@ -23,7 +37,7 @@ router.get('/orders', verifyToken, allowRoles('delivery'), async (req, res) => {
 // ✅ Update delivery status
 router.patch('/order/:id', verifyToken, allowRoles('delivery'), async (req, res) => {
   try {
-    const response = await axios.patch(`${ORDER_SERVICE_URL}/order/status/${req.params.id}`, req.body, {
+    const response = await axios.patch(`http://order-service:5003/order/status/${req.params.id}`, req.body, {
       headers: {
         Authorization: req.headers.authorization
       }

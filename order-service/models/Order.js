@@ -16,7 +16,15 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'accepted', 'in-transit', 'delivered'],
     default: 'pending'
   },
-  deliveryPersonId: String // Optional, set when assigned
+  deliveryPersonId: String,
+  location: {
+    address: String,
+    coordinates: {
+      lat: Number,
+      lng: Number
+    }
+  },
+  paymentIntentId: String
 });
 
 module.exports = mongoose.model('Order', orderSchema);

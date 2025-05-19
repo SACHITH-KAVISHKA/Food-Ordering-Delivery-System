@@ -33,19 +33,71 @@ const NOTIFY_SERVICE_URL = process.env.NOTIFY_SERVICE_URL;
   
 
 // 🧑 Customer places an order
+// router.post('/create', verifyToken, allowRoles('customer'), async (req, res) => {
+//   const { restaurantId, items, location } = req.body;
+//   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+//   const order = new Order({
+//     customerId: req.user.id,
+//     restaurantId,
+//     items,
+//     total,
+//     location
+//   });
+
+//   await order.save();
+//   res.status(201).json({ message: 'Order created', order });
+// });
+
 router.post('/create', verifyToken, allowRoles('customer'), async (req, res) => {
-  const { restaurantId, items } = req.body;
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const { restaurantId, items, deliveryLocation, paymentIntentId } = req.body;
 
-  const order = new Order({
-    customerId: req.user.id,
-    restaurantId,
-    items,
-    total,
-  });
+  if (!restaurantId || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: 'Restaurant ID and items are required' });
+  }
+  if (!deliveryLocation || typeof deliveryLocation.latitude !== 'number' || typeof deliveryLocation.longitude !== 'number') {
+    return res.status(400).json({ message: 'Valid delivery location (latitude and longitude) is required' });
+  }
+  if (!paymentIntentId) {
+    return res.status(400).json({ message: 'Payment Intent ID is required' });
+  }
 
-  await order.save();
-  res.status(201).json({ message: 'Order created', order });
+  try {
+    const paymentResponse = await axios.get(
+      `http://payment-service:5008/payment/verify-payment/${paymentIntentId}`,
+      {
+        headers: { Authorization: `Bearer ${req.headers.authorization.split(' ')[1]}` }
+      }
+    );
+
+    if (paymentResponse.data.status !== 'succeeded') {
+      return res.status(400).json({ message: 'Payment not successful' });
+    }
+
+    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const order = new Order({
+      customerId: req.user.id,
+      restaurantId,
+      items,
+      total,
+      deliveryLocation,
+      paymentIntentId
+    });
+
+    await order.save();
+
+    await axios.post(
+      `http://payment-service:5008/payment/update/${paymentIntentId}`,
+      { orderId: order._id },
+      { headers: { Authorization: `Bearer ${req.headers.authorization.split(' ')[1]}` } }
+    );
+
+    res.status(201).json({ message: 'Order created', order });
+  } catch (err) {
+    console.error('Order creation error:', err);
+    res.status(500).json({ message: 'Failed to create order' });
+  }
 });
 
 // get orders
@@ -57,6 +109,7 @@ router.get('/customer/orders', verifyToken, allowRoles('customer'), async (req, 
 
 router.get('/delevery/allorders', verifyToken, allowRoles('delivery'), async (req, res) => {
   const orders = await Order.find({ status: { $ne: 'delivered' } });
+  console.log('All orders:', orders);
   res.json(orders);
 });
 
@@ -73,7 +126,7 @@ router.get('/delivery/orders', verifyToken, allowRoles('delivery'), async (req, 
       },
       {
         $lookup: {
-          from: 'users', // Name of the User collection
+          from: 'users',
           localField: 'deliveryPersonId',
           foreignField: '_id',
           as: 'deliveryPerson'
@@ -82,7 +135,7 @@ router.get('/delivery/orders', verifyToken, allowRoles('delivery'), async (req, 
       {
         $unwind: {
           path: '$deliveryPerson',
-          preserveNullAndEmptyArrays: true // Keep orders without deliveryPersonId
+          preserveNullAndEmptyArrays: true
         }
       },
       {
@@ -93,17 +146,19 @@ router.get('/delivery/orders', verifyToken, allowRoles('delivery'), async (req, 
           total: 1,
           createdAt: 1,
           deliveryPersonId: 1,
-          deliveryPersonName: '$deliveryPerson.username' 
+          deliveryPersonName: '$deliveryPerson.username',
+          location: 1 // <-- include location
         }
       }
     ]);
-
+    console.log('Delivery orders:', orders);
     res.json(orders);
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: 'Error fetching delivery orders' });
   }
 });
+
 
 // 🍽️ Restaurant fetches incoming orders
 router.get('/restaurant', verifyToken, allowRoles('restaurant'), async (req, res) => {
@@ -146,6 +201,7 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
 
   const validStatus = ['accepted', 'in-transit', 'delivered'];
   if (!validStatus.includes(status)) {
+    res.json({ message: 'jasmlk 1' });
     return res.status(400).json({ message: 'Invalid status' });
   }
 
@@ -155,6 +211,7 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
   order.status = status;
 
   if (req.user.role === 'delivery' && status === 'in-transit') {
+        res.json({ message: 'jasmlk 2' });
     order.deliveryPersonId = req.user.id;
   }
 
@@ -162,10 +219,11 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
 
   // 🔔 Notify customer based on status
   const fakeCustomerPhone = '+94761111222';
-  const fakeCustomerEmail = 'customer@example.com';
+  const fakeCustomerEmail = 'jayaisurusamarakoon2@gmail.com';
 
   try {
     if (status === 'accepted') {
+          res.json({ message: 'jasmlk 3' });
       await axios.post(`${NOTIFY_SERVICE_URL}/notify/email`, {
         to: fakeCustomerEmail,
         subject: 'Your order has been accepted!',
@@ -174,6 +232,7 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
     }
 
     if (status === 'in-transit') {
+          res.json({ message: 'jasmlk 4' });
       await axios.post(`${NOTIFY_SERVICE_URL}/notify/sms`, {
         to: fakeCustomerPhone,
         message: `🚴 Your delivery is now on the way!`
@@ -181,6 +240,7 @@ router.patch('/status/:id', verifyToken, allowRoles('restaurant', 'delivery'), a
     }
 
     if (status === 'delivered') {
+          res.json({ message: 'jasmlk 5' });
       await axios.post(`${NOTIFY_SERVICE_URL}/notify/email`, {
         to: fakeCustomerEmail,
         subject: 'Order Delivered!',

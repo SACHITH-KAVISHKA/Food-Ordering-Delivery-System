@@ -55,7 +55,7 @@ spec:
     spec:
       containers:
       - name: notification-service
-        image: yourdockerhub/notification-service:latest
+        image: sachith12/notification-service:latest
         ports:
         - containerPort: 5006
         env:
@@ -116,7 +116,7 @@ spec:
     spec:
       containers:
       - name: payment-service
-        image: yourdockerhub/payment-service:latest
+        image: sachith12/payment-service:latest
         ports:
         - containerPort: 5005
         env:
@@ -155,7 +155,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: yourdockerhub/auth-service:latest
+        image: sachith12/auth-service:latest
         ports:
         - containerPort: 5001
         env:
@@ -196,7 +196,7 @@ spec:
     spec:
       containers:
       - name: restaurant-service
-        image: yourdockerhub/restaurant-service:latest
+        image: sachith12/restaurant-service:latest
         ports:
         - containerPort: 5002
 ---
@@ -229,7 +229,7 @@ spec:
     spec:
       containers:
       - name: order-service
-        image: yourdockerhub/order-service:latest
+        image: sachith12/order-service:latest
         ports:
         - containerPort: 5003
 ---
@@ -262,7 +262,7 @@ spec:
     spec:
       containers:
       - name: delivery-service
-        image: yourdockerhub/delivery-service:latest
+        image: sachith12/delivery-service:latest
         ports:
         - containerPort: 5004
 ---
@@ -302,3 +302,4 @@ stringData:
   EMAIL_PASS: "yourappassword"
   STRIPE_SECRET_KEY: "sk_test_xxxxxxxxxxxxxxxxxxxx"
   JWT_SECRET: "yourjwtsecret"
+

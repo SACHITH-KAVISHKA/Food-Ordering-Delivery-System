@@ -54,7 +54,8 @@ const Sidebar = ({ user }) => {
               <Coffee className="text-black" size={isOpen || window.innerWidth >= 1024 ? 24 : 20} />
             </div>
             <h1 className={`ml-2 font-bold text-xl ${!isOpen && window.innerWidth < 1024 ? 'hidden' : 'block'}`}>
-              Eatzaa
+            <span className="text-white">Eat</span>
+            <span className="text-green-500">zaa</span>
             </h1>
           </div>
         </div>
@@ -64,9 +65,9 @@ const Sidebar = ({ user }) => {
           <ul className="space-y-2">
             <li>
               <Link 
-                to="/"
+                to="/home"
                 className={`flex items-center p-3 rounded-md transition-colors duration-200
-                           ${isActive('/') ? 'bg-yellow-500 text-black' : 'hover:bg-gray-800'}`}
+                           ${isActive('/home') ? 'bg-yellow-500 text-black' : 'hover:bg-gray-800'}`}
               >
                 <Home size={20} />
                 <span className={`ml-3 ${!isOpen && window.innerWidth < 1024 ? 'hidden' : 'block'}`}>Home</span>

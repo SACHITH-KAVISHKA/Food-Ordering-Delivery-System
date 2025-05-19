@@ -39,7 +39,18 @@ https://github.com/SACHITH-KAVISHKA/Food-Ordering-Delivery-System.git
   - `TWILIO_*`, `EMAIL_*` for notifications
 
 3. **Run with Docker Compose:**
+
+  docker-compose up --build
+
+
+4. **Run with Docker Compose:**
 ```bash
-docker-compose up --build
+kubectl apply -f k8s/all-services.yaml,
+kubectl cluster-info,
+kubectl get pods
+
+
+
+
 
 

@@ -120,7 +120,6 @@ router.get('/delivery/orders', verifyToken, allowRoles('delivery'), async (req, 
         $match: {
           $or: [
             { status: 'in-transit', deliveryPersonId: req.user.id },
-            { status: 'accepted' }
           ]
         }
       },

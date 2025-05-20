@@ -205,7 +205,7 @@ const CreateOrder = () => {
 
         try {
           const response = await axios.get(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coords.latitude},${coords.longitude}&key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}`
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coords.latitude},${coords.longitude}&key=${'AIzaSyB8K1gk_YUq49p5FZUhfYF7ILfx0HTbJG0'}`
           );
 
           if (response.data.results && response.data.results.length > 0) {
